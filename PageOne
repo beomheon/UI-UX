@@ -1,0 +1,93 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class PageOne extends StatefulWidget {
+  late final TextEditingController editingController;
+
+  PageOne({required this.editingController});
+
+  @override
+  _PageOne createState() => _PageOne();
+}
+
+class _PageOne extends State<PageOne> {
+  Future<String>? cafeInfoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    cafeInfoFuture = getCafeInfo();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          '관련 정보',
+          style: TextStyle(
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: FutureBuilder<String>(
+          future: cafeInfoFuture,
+          builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            } else if (snapshot.hasData) {
+              return Text(
+                snapshot.data!,
+                style: TextStyle(fontSize: 16.0),
+              );
+            } else if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  '관련 정보를 가져오는 중에 오류가 발생했습니다.',
+                  style: TextStyle(fontSize: 16.0),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            } else {
+              return SizedBox();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<String> getCafeInfo() async {
+    var url = 'https://dapi.kakao.com/v2/search/cafe?'
+        'target=title&query=${widget.editingController.text}';
+    var response = await http.get(Uri.parse(url), headers: {
+      "Authorization": "KakaoAK cb44afcef6081f91baf8bc5dc66c4044",
+    });
+    if (response.statusCode == 200) {
+      var dataConvertedToJSON = json.decode(response.body);
+      var cafeInfoList = dataConvertedToJSON['documents'];
+      var cafeInfoText = '';
+      for (var cafeInfo in cafeInfoList) {
+        var cafeName = cafeInfo['name'];
+        var location = cafeInfo['location'];
+        var openingHours = cafeInfo['opening_hours'];
+        var phoneNumber = cafeInfo['phone_number'];
+
+        var cafeInfoString = '카페명: $cafeName\n'
+            '위치: $location\n'
+            '영업시간: $openingHours\n'
+            '전화번호: $phoneNumber\n\n';
+        cafeInfoText += cafeInfoString;
+      }
+      return cafeInfoText;
+    } else {
+      throw Exception('카페 정보를 가져오는데 실패했습니다.');
+    }
+  }
+}
